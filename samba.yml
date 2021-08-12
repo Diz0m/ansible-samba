@@ -1,0 +1,67 @@
+---
+- name: share samba in deb and cent systems
+  hosts: all
+  tasks:
+  - name: disable firewalld
+    shell: systemctl disable --now firewalld
+    when: "'Cent' in inventory_hostname"
+
+  - name: disable selinux
+    shell: sed -i "s/SELINUX=enforcing/SELINUX=disabled/g" /etc/selinux/config
+    when: "'Cent' in inventory_hostname"
+
+  - name: mkdir /opt/samba
+    shell: mkdir /opt/samba
+    when: "'SRV' in inventory_hostname"
+
+  - name: chmod 777
+    shell: chmod 777 /opt/samba/
+    when: "'SRV' in inventory_hostname"
+
+  - name: install samba CentSRV1
+    dnf: name=samba state=latest
+    when: inventory_hostname == "CentSRV1"
+
+  - name: install samba on DebSRV1
+    apt: name=samba state=latest
+    when: inventory_hostname == "DebSRV1"
+
+  - name: change samba configuration
+    copy: src=/opt/samba/smb.conf dest=/etc/samba/smb.conf
+    when: "'SRV' in inventory_hostname"
+
+  - name: smbpasswd
+    shell: (echo "toor"; echo "toor") | smbpasswd -s -a "root"
+    when: "'SRV' in inventory_hostname"
+
+  - name: start and enable samba on CentSRV1
+    service: name=smb state=restarted enabled=yes
+    when: inventory_hostname == "CentSRV1"
+
+  - name: start and enable samba on DebSRV1
+    service: name=smbd state=restarted enabled=yes
+    when: inventory_hostname == "DebSRV1"
+
+  - name: install samba-clients
+    dnf: name=samba-client state=latest
+    when: inventory_hostname == "CentCLI1"
+
+  - name: install samba-clients
+    apt: name=samba-client state=latest
+    when: inventory_hostname == "DebCLI1"
+
+  - name: mkdir /opt/samba on clients
+    shell: mkdir /opt/samba
+    when: "'CLI' in inventory_hostname"
+
+  - name: mount
+    shell: echo "//192.168.3.55/samba /opt/samba cifs username=root,password=toor,iocharset=utf8,vers=3.0,noperm,dir_mode=0777,file_mode=0777 0 0"  0 0  >> /etc/fstab
+    when: inventory_hostname == "CentCLI1"
+
+  - name: mount samba folder
+    shell: echo "//192.168.3.40/samba /opt/samba cifs username=root,password=toor,iocharset=utf8,vers=3.0,noperm,dir_mode=0777,file_mode=0777 0 0"  0 0  >> /etc/fstab
+    when: inventory_hostname == "DebCLI1"
+
+  - name: mount -a
+    shell: mount -a
+    when: "'CLI' in inventory_hostname"
